@@ -1,0 +1,111 @@
+---
+title: "Untitled"
+author: "Noah Weston"
+date: "2024-10-10"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(rvest)
+library(xml2)
+```
+
+```{r}
+# Read in the website
+myhtml <- "https://www.timeanddate.com/weather/usa/idaho-falls/historic?month=1&year=2024"
+myhtml2 <- "https://www.timeanddate.com/weather/usa/boise/historic?month=10&year=2024"
+readIn <- read_html(myhtml)
+readIn2 <- read_html(myhtml2)
+# xml_structure(readIn)
+```
+
+```{r}
+# Get the tables
+tables <- html_table(readIn2)
+#tables
+
+# Get the right column names
+weather <- tables[[2]]
+colnames(weather) <- weather[1,]
+weather <- weather[-1,]
+
+# Remove blank columns
+keepCols <- names(weather) %in% c("")
+weather <- weather[!keepCols]
+
+# Remove source row
+weather <- weather[1:(nrow(weather) - 1), ]
+
+# Create date column
+weather <- weather %>% 
+  mutate(Date = "October 2024")
+
+# Fix time column
+weather <- weather %>% 
+  mutate(Time = str_sub(Time, 1, 8))
+```
+
+```{r}
+View(weather)
+```
+
+
+```{r}
+# Construct html for looping
+html1 <- "https://www.timeanddate.com/weather/"
+country <- "usa"
+html2 <- "/"
+location <- "boise"
+html3 <- "/historic?month="
+html4 <- "&year="
+year <- 2023
+myloop <- weather
+
+# Loop it
+while (year < 2024) {
+  
+  month <- 1
+  while (month < 13) {
+    # Retrieve this table
+    thisHtml <- paste(html1, country, html2, location, html3, 
+                      as.character(month), html4, as.character(year), 
+                      sep = "")
+    readThisIn <- read_html(thisHtml)
+    thisInfo <- html_table(readThisIn)
+    thisTable <- thisInfo[[2]]
+    
+    # Set column names
+    colnames(thisTable) <- thisTable[1,]
+    thisTable <- thisTable[-1,]
+    
+    # Remove blank columns
+    keepCols <- names(thisTable) %in% c("")
+    thisTable <- thisTable[!keepCols]
+    
+    # Remove source row
+    thisTable <- thisTable[1:(nrow(thisTable) - 1), ]
+    
+    # Create a date column
+    thisTable <- thisTable %>%
+      mutate(Date = paste(month.name[month], as.character(year), sep = " "))
+    
+    # Fix time column
+    thisTable <- thisTable %>% 
+      mutate(Time = str_sub(Time, 1, 8))
+    
+    # Add into larger set
+    myloop <- full_join(myloop, thisTable, by = names(weather))
+
+    month <- month + 1
+  }
+  
+  year <- year + 1
+}
+```
+
+work going forward:
+make location column
